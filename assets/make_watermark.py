@@ -3,13 +3,34 @@
 Pre-rendered at 4x so it downscales cleanly onto any clip size, with a soft
 dark shadow so it stays legible over bright footage.
 """
+import os
+
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 S = 4                      # supersampling
 H = 64 * S                 # lockup height
 PAD = 6 * S
 
-font = ImageFont.truetype("/System/Library/Fonts/HelveticaNeue.ttc", int(38 * S), index=1)  # Bold
+# Liberation Sans Bold rather than a system font path: it is metric-compatible
+# with Helvetica/Arial (and is already what fonts/renomi-fontmap.conf resolves
+# those to inside the image), so this script runs the same on a dev Mac, in CI
+# and in the container. First path that exists wins.
+CANDIDATES = [
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "/System/Library/Fonts/HelveticaNeue.ttc",
+    "C:/Windows/Fonts/arialbd.ttf",
+]
+font = None
+for path in CANDIDATES:
+    if os.path.exists(path):
+        # HelveticaNeue.ttc is a collection; index 1 is Bold.
+        font = (ImageFont.truetype(path, int(38 * S), index=1)
+                if path.endswith(".ttc") else ImageFont.truetype(path, int(38 * S)))
+        break
+if font is None:
+    raise SystemExit("no bold sans font found; add one to CANDIDATES")
+
 text = "Renomi"
 
 tmp = Image.new("RGBA", (10, 10))
@@ -42,5 +63,6 @@ shadow.paste((0, 0, 0, 170), (0, 0), img.split()[3])
 shadow = shadow.filter(ImageFilter.GaussianBlur(int(2.5 * S)))
 out = Image.alpha_composite(shadow, img)
 
-out.save("watermark.png")
-print("watermark.png", out.size)
+out_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "watermark.png")
+out.save(out_path)
+print(out_path, out.size)
