@@ -11,7 +11,6 @@ const renderer = process.env.VITE_RENDER_TARGET || 'http://renderer:3100'
 export default defineConfig({
   plugins: [react()],
   server: {
-    allowedHosts: ['renomi.us', 'www.renomi.us'],
     proxy: {
       '/api': { target: backend, changeOrigin: true },
       '/videos': { target: backend, changeOrigin: true },

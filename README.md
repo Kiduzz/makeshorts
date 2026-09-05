@@ -16,29 +16,46 @@ video; nothing to configure.
 
 ## How this runs
 
-**It runs on your machine, and it is the only edition there is.** There are no
-plans, no accounts, no metering and no watermark — the app never asks who you
-are. You bring your own API keys (Gemini, and optionally ElevenLabs / fal.ai /
-Upload-Post) and you pay those providers directly. See
-[How much does it cost?](#how-much-does-it-cost) for what that actually comes to.
+**Everything runs on your own machine — the app, the dashboard and every
+video.** There is no hosted service, no account, no plan, no metering and no
+watermark; the app never asks who you are. Clone it, `docker compose up`, and
+open the dashboard on localhost. You bring your own API keys (Gemini, and
+optionally ElevenLabs / fal.ai / Upload-Post) and pay those providers directly.
+See [How much does it cost?](#how-much-does-it-cost) for what that comes to.
 
-The backend and the dashboard can live in different places. The dashboard is a
-static SPA, so it deploys to Cloudflare Pages, Netlify or any static host; point
-it at your backend by setting `VITE_API_URL` at build time:
+Nothing leaves your machine except the calls to those APIs. Your source videos
+are downloaded, transcribed, cut and rendered locally, and the finished clips
+sit in `output/` until you publish or delete them.
+
+Anyone you share this with runs their own copy the same way, with their own
+keys. There is no instance to sign up for, and no server of yours for them to
+depend on.
+
+> **The API has no authentication.** That is fine on localhost, and it is why
+> `docker compose up` binds every port to `127.0.0.1` rather than `0.0.0.0` —
+> otherwise anyone on the same café or office wifi could reach your API and
+> spend your keys. If you ever change those bindings or put the backend on a
+> public host, put your own auth in front of it first. `/mcp` is open too.
+
+<details>
+<summary>Running the dashboard somewhere other than the backend</summary>
+
+The dashboard is a static SPA, so it can be built and served separately from
+the API — a static host, another machine on your LAN. Point it at the backend
+at build time:
 
 ```bash
 cd dashboard
-VITE_API_URL=https://your-backend-host npm run build   # dist/ is the deployable
+VITE_API_URL=http://your-backend-host:8000 npm run build   # dist/ is the deployable
 ```
 
-Leave `VITE_API_URL` unset and the dashboard uses relative paths, which is what
-you want when both are served from the same origin (the Docker Compose setup
-below). The backend answers CORS with `*`, so a cross-origin dashboard works
-out of the box.
+Leave `VITE_API_URL` unset (the default) and it uses relative paths, which is
+what the Compose setup wants. The backend answers CORS with `*`, so a
+cross-origin dashboard works — but read the authentication note above first,
+because a backend the dashboard can reach from elsewhere is a backend other
+people can reach too.
 
-> **Exposing the backend?** It has no authentication of any kind — anyone who can
-> reach it can spend your API keys and your CPU, and `/mcp` is open too. Keep it
-> on localhost, a VPN or Tailscale, or put your own auth in front of it.
+</details>
 
 ### Video Tutorial: How it works
 [![Renomi Tutorial](https://img.youtube.com/vi/xlyjD1qCaX0/maxresdefault.jpg)](https://www.youtube.com/watch?v=xlyjD1qCaX0 "Click to watch the video on YouTube")

@@ -15,7 +15,11 @@ knowing before writing code against this repo:
 
 - **No user model.** No accounts, no auth, no sessions, no API keys. `/api/*`
   and `/mcp` authenticate nobody, and `_assert_job_owner` / `_owner_id` are
-  documented no-ops. Anyone who reaches the backend can spend its API keys.
+  documented no-ops. This is a single-user tool that runs on the operator's own
+  machine, which is why that is acceptable — and why `docker-compose.yml`
+  publishes every port on `127.0.0.1` instead of `0.0.0.0`. Do not "simplify"
+  those bindings back: on a shared network they hand an open, key-spending API
+  to everyone on it.
 - **No metering.** `reserve_managed_action` always returns None and the ~40
   `if reservation_id:` guards around the endpoints never fire. They are kept
   deliberately as the seam to rebuild against, not as live code.

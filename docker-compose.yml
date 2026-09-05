@@ -3,7 +3,13 @@ services:
     build: .
     container_name: renomi-backend
     ports:
-      - "8000:8000"
+      # Bound to the loopback interface, not 0.0.0.0. The API authenticates
+      # nobody, so a plain "8000:8000" publishes an open endpoint to every
+      # other machine on whatever network you are joined to — the café wifi,
+      # the office LAN — where anyone who finds it can spend your API keys.
+      # Containers still reach each other over the compose network, so this
+      # costs nothing. Change it only if you deliberately want LAN access.
+      - "127.0.0.1:8000:8000"
     volumes:
       - .:/app
       - /app/__pycache__
@@ -16,7 +22,7 @@ services:
       target: dev
     container_name: renomi-frontend
     ports:
-      - "5175:5173"
+      - "127.0.0.1:5175:5173"
     volumes:
       - ./dashboard:/app
       - /app/node_modules
@@ -30,7 +36,7 @@ services:
       dockerfile: render-service/Dockerfile
     container_name: renomi-renderer
     ports:
-      - "3100:3100"
+      - "127.0.0.1:3100:3100"
     volumes:
       - ./output:/output
     environment:
