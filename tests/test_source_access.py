@@ -5,7 +5,7 @@ version of it is a public downloader wearing a UUID. A <video src> cannot send
 an Authorization header, so the owner mints a signed URL from /api/source-url
 and hands the player that.
 
-BILLING_ENABLED=0 here (conftest), which is the self-host branch: no owner to
+There is no owner model in this edition: no owner to
 check and no secret to sign with, so the open path must keep working exactly as
 before. That regression is most of what these tests are for.
 """
@@ -190,26 +190,13 @@ class TestSourceUrlNeverMintsBlind:
         assert r.status_code == 200
         assert r.json()["url"] == "/api/source/nobody-home"
 
-    def test_cloud_refuses_instead_of_signing(self, tmp_path, monkeypatch):
-        # With billing on, an unresolvable job used to get a valid capability
-        # for the asking. It must 404 instead.
-        #
-        # _signed_source_url is stubbed so that reopening the hole fails on the
-        # assertion below and not on _cloud_config being None off-billing: a
-        # test that only passes because the minter happens to crash would stop
-        # guarding the moment the minter stopped crashing.
+    def test_unknown_job_still_answers(self, tmp_path, monkeypatch):
+        # There is no owner to protect a source from here, so an unresolvable
+        # job gets the plain path rather than a 404. Upstream's paid mode
+        # refuses instead; if a user model is ever added back, this is the
+        # test that should start failing.
         monkeypatch.setattr(app_module, "OUTPUT_DIR", str(tmp_path))
         monkeypatch.setattr(app_module, "UPLOAD_DIR", str(tmp_path))
-        monkeypatch.setattr(app_module, "BILLING_ENABLED", True)
-        monkeypatch.setattr(app_module, "_signed_source_url", lambda j: f"/signed/{j}")
-        assert _get("/api/source-url/nobody-home").status_code == 404
-
-    def test_cloud_still_serves_the_owner(self, job, monkeypatch):
-        # The job fixture stamps user_id None (self-host style), which
-        # _assert_job_owner treats as "nothing to check", so this proves the
-        # refusal above is about the missing record and not a blanket block.
-        monkeypatch.setattr(app_module, "BILLING_ENABLED", True)
-        monkeypatch.setattr(app_module, "_signed_source_url", lambda j: f"/signed/{j}")
-        r = _get(f"/api/source-url/{JOB_ID}")
+        r = _get("/api/source-url/nobody-home")
         assert r.status_code == 200
-        assert r.json()["url"] == f"/signed/{JOB_ID}"
+        assert r.json()["url"] == "/api/source/nobody-home"

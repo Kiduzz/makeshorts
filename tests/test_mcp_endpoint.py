@@ -7,7 +7,7 @@ the contract being tested: self-host must serve MCP without any of that.
 """
 import asyncio
 
-# Self-host mode is guaranteed by tests/conftest.py (BILLING_ENABLED=0), which
+# There is one mode (BYOK, no user model), which
 # runs before any test module can import app.
 import httpx
 
@@ -88,39 +88,22 @@ class TestToolsThroughRealEndpoints:
         assert resp.json()["result"]["isError"] is True
 
 
-class TestSelfHostQuota:
-    def test_get_quota_reports_no_quota_instead_of_erroring(self):
-        # /api/me only exists in cloud mode; self-host must get the friendly
-        # "no quota here" answer, not a 404 tool error.
-        resp = _call("get_quota", {})
-        result = resp.json()["result"]
-        assert result["isError"] is False
-        assert result["structuredContent"]["self_host_or_anonymous"] is True
+class TestTransportIsOpen:
+    """No user model, so the transport authenticates nobody.
 
+    Pinned as a decision rather than an accident: the endpoint spends the
+    operator's API keys and CPU, so if auth is ever added it should fail this
+    test loudly rather than silently stop gating.
+    """
 
-class TestCloudModeAuth:
-    """mcp_server reads BILLING_ENABLED per request (unlike app.py, which
-    freezes it at import), so cloud-mode gating is testable by env patch."""
-
-    def test_401_without_credentials(self, monkeypatch):
-        monkeypatch.setenv("BILLING_ENABLED", "1")
-        resp = _post({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
-        assert resp.status_code == 401
-        # OAuth-capable clients discover the login flow from this header.
-        assert resp.headers.get("www-authenticate").startswith("Bearer resource_metadata=")
-        assert "/.well-known/oauth-protected-resource" in resp.headers.get("www-authenticate")
-        assert "osk_" in resp.json()["error"]  # the fix is named in the message
-
-    def test_resolvable_user_passes(self, monkeypatch):
-        monkeypatch.setenv("BILLING_ENABLED", "1")
-        import cloud.auth as cloud_auth
-
-        async def fake_user(request):
-            return object()
-        monkeypatch.setattr(cloud_auth, "get_current_user_optional", fake_user)
+    def test_initialize_needs_no_credentials(self):
         resp = _post({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
         assert resp.status_code == 200
-        assert resp.json()["result"]["serverInfo"]["name"] == "openshorts"
+
+    def test_quota_tool_is_not_advertised(self):
+        resp = _post({"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}})
+        names = {t["name"] for t in resp.json()["result"]["tools"]}
+        assert "get_quota" not in names
 
 
 class TestWebhookSigning:

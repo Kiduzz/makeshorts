@@ -7,18 +7,16 @@ plus notifications, and owning those ~200 lines beats carrying the full SDK as
 a dependency for them.
 
 Tools don't reimplement anything: each one is an in-process HTTP call back into
-this same app (httpx ASGITransport) with the caller's auth headers forwarded.
-Cloud mode therefore meters, gates and scopes agent calls exactly like
-dashboard calls — an ``osk_`` API key IS the user (see cloud/api_keys.py).
-Self-host keeps its BYOK semantics: no key required, ``X-Gemini-Key`` /
-env fallbacks apply unchanged.
+this same app (httpx ASGITransport) with the caller's headers forwarded, so a
+tool can never drift from the REST behavior. BYOK semantics throughout: no key
+required by the transport, ``X-Gemini-Key`` / env fallbacks apply unchanged.
+
+The endpoint is unauthenticated — anyone who can reach it can spend your API
+keys and your CPU. Put it behind your own auth (reverse proxy, network policy,
+Tailscale) before exposing it beyond localhost.
 
 Connect with any MCP client, e.g.:
-    claude mcp add --transport http openshorts https://mcp.openshorts.app/mcp \
-        --header "Authorization: Bearer osk_..."
-
-(mcp.openshorts.app is a domain alias of the API app; api.openshorts.app/mcp
-serves the identical endpoint.)
+    claude mcp add --transport http renomi http://localhost:8000/mcp
 """
 import json
 import os
@@ -43,7 +41,7 @@ INSTRUCTIONS = (
     "reach the video and it is not needed. Typical flow: process_video -> "
     "poll get_job_status until 'completed' (a job takes minutes; poll every "
     "30-60s or pass webhook_url) -> list_clips -> optionally add_subtitles / "
-    "recut_clip / publish_clip. Check get_quota before large jobs. The user "
+    "recut_clip / publish_clip. The user "
     "must own the content or hold the rights: ask once, then pass "
     "confirm_rights=true."
 )
@@ -208,16 +206,6 @@ TOOLS = [
         },
     },
     {
-        "name": "get_quota",
-        "title": "Get plan and remaining minutes",
-        "description": (
-            "The authenticated user's plan and remaining processing minutes. "
-            "Call before large jobs; process_video fails with quota_exceeded "
-            "when the balance is insufficient."
-        ),
-        "inputSchema": {"type": "object", "properties": {}},
-    },
-    {
         "name": "add_subtitles",
         "title": "Burn styled captions onto a clip",
         "description": (
@@ -296,7 +284,7 @@ TOOLS = [
         "description": (
             "Post one clip to the user's connected accounts (TikTok lands as a "
             "draft in the app; Instagram and YouTube publish directly). Requires "
-            "a connected social profile (cloud) or an Upload-Post key (self-host). "
+            "an Upload-Post key. "
             "Optionally schedule with an ISO-8601 scheduled_date."
         ),
         "inputSchema": {
@@ -427,23 +415,6 @@ async def _tool_list_clips(client, args):
     return {"job_id": args["job_id"], "clips": out.get("clips") or []}, False
 
 
-async def _tool_get_quota(client, args):
-    resp = await client.get("/api/me")
-    # 401: anonymous. 404: self-host, where /api/me isn't even mounted (the
-    # cloud router only registers under BILLING_ENABLED). Neither is an error
-    # from the agent's point of view — there is simply no quota to report.
-    if resp.status_code in (401, 404):
-        return {"self_host_or_anonymous": True,
-                "note": "No authenticated cloud user; if this is a self-hosted "
-                        "instance there is no minute quota."}, False
-    if resp.status_code >= 400:
-        return _api_error(resp), True
-    data = resp.json()
-    return {"plan": data.get("plan"), "entitled": data.get("entitled"),
-            "minutes": data.get("minutes"),
-            "upload_post_profile": data.get("upload_post_profile")}, False
-
-
 async def _tool_add_subtitles(client, args):
     body = {"job_id": args["job_id"], "clip_index": args["clip_index"]}
     for k in ("style", "position", "font_size", "font_name", "font_color",
@@ -485,7 +456,6 @@ _TOOL_IMPLS = {
     "create_upload": _tool_create_upload,
     "get_job_status": _tool_get_job_status,
     "list_clips": _tool_list_clips,
-    "get_quota": _tool_get_quota,
     "add_subtitles": _tool_add_subtitles,
     "recut_clip": _tool_recut_clip,
     "publish_clip": _tool_publish_clip,
@@ -587,37 +557,10 @@ async def handle_message(msg, tool_caller) -> Optional[dict]:
 # --------------------------------------------------------------------------- #
 # Transport endpoints
 # --------------------------------------------------------------------------- #
-def _billing_enabled() -> bool:
-    return os.environ.get("BILLING_ENABLED", "").lower() in ("1", "true", "yes")
-
-
-async def _authorized(request: Request) -> bool:
-    """Cloud mode requires a resolvable user (API key or JWT) before any RPC.
-
-    The internal endpoints would each reject anonymous calls anyway; failing
-    once here with a clear 401 is what lets MCP clients surface 'add your API
-    key' instead of a per-tool 402. Self-host stays open (BYOK)."""
-    if not _billing_enabled():
-        return True
-    from cloud.auth import get_current_user_optional
-    return (await get_current_user_optional(request)) is not None
-
-
 @router.post("/mcp")
 async def mcp_endpoint(request: Request):
-    if not await _authorized(request):
-        # OAuth-capable clients (claude.ai, ChatGPT) read resource_metadata off
-        # this header and run the login flow themselves; everyone else gets the
-        # API-key hint in the body.
-        from cloud import mcp_oauth
-        u = request.base_url
-        return JSONResponse(
-            {"error": "Authentication required. Connect with OAuth (claude.ai, ChatGPT) "
-                      "or pass an OpenShorts API key: Authorization: Bearer osk_... "
-                      "(create one in the dashboard)."},
-            status_code=401,
-            headers={"WWW-Authenticate": mcp_oauth.www_authenticate(f"{u.scheme}://{u.netloc}")},
-        )
+    # No transport auth: this edition has no user model to authenticate against.
+    # See the module docstring — gate it upstream before exposing it.
     try:
         msg = json.loads(await request.body())
     except Exception:

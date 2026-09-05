@@ -1,7 +1,7 @@
 """HTTP tests for the Thumbnail Studio -> clip generator handover (issue #68).
 
 Same conventions as test_rerender_endpoint.py: a real ASGI round-trip against
-the imported app (BILLING_ENABLED=0 via conftest). The job is only ENQUEUED —
+the imported app. The job is only ENQUEUED —
 the worker never runs under ASGITransport (no lifespan) — so these tests own
 the /api/process contract for `thumbnail_session_id`: session validation, the
 hardlinked source under the job's name, the transcript file ridden along via

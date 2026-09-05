@@ -1276,7 +1276,7 @@ def process_video_to_vertical(input_video, final_output_video, aspect_ratio=ASPE
     # Global tracker for single-person shots
     speaker_tracker = SpeakerTracker(cooldown_frames=30)
 
-    # Per-stage wall time (server-side diagnostics; hidden from cloud logs).
+    # Per-stage wall time (server-side diagnostics).
     stage_seconds = {'detect': 0.0, 'write': 0.0}
     loop_started = time.time()
 

@@ -27,36 +27,17 @@ import app as app_module
 OTHER_TENANT = "os_deadbeefcafe"
 
 
-class TestResolvePostProfileInCloud:
-    @pytest.fixture(autouse=True)
-    def _cloud(self, monkeypatch):
-        monkeypatch.setattr(app_module, "BILLING_ENABLED", True)
+class TestResolvePostProfile:
+    """One tenant: the caller owns the Upload-Post account whose key resolved
+    the request, so it may name its own profile.
 
-    def test_uses_the_server_resolved_profile(self):
-        assert app_module.resolve_post_profile("os_mine", None) == "os_mine"
+    The server-resolved value still wins over the client's when both are
+    present — that ordering is what stops a client naming someone else's
+    profile if a multi-tenant layer is ever added back.
+    """
 
-    def test_ignores_a_profile_supplied_by_the_caller(self):
+    def test_server_resolved_profile_wins(self):
         assert app_module.resolve_post_profile("os_mine", OTHER_TENANT) == "os_mine"
-
-    def test_refuses_instead_of_falling_back_to_the_caller_value(self):
-        # The whole point: no server profile must NOT mean "use theirs".
-        with pytest.raises(HTTPException) as exc:
-            app_module.resolve_post_profile(None, OTHER_TENANT)
-        assert exc.value.status_code == 503
-
-    @pytest.mark.parametrize("empty", [None, ""])
-    def test_empty_server_profile_is_also_refused(self, empty):
-        with pytest.raises(HTTPException):
-            app_module.resolve_post_profile(empty, OTHER_TENANT)
-
-
-class TestResolvePostProfileSelfHosted:
-    """Self-host has no user model: the caller owns the Upload-Post account
-    whose key resolved the request, so it may name its own profile."""
-
-    @pytest.fixture(autouse=True)
-    def _self_host(self, monkeypatch):
-        monkeypatch.setattr(app_module, "BILLING_ENABLED", False)
 
     def test_client_profile_is_honoured(self):
         assert app_module.resolve_post_profile(None, "my-profile") == "my-profile"

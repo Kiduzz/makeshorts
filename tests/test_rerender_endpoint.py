@@ -1,7 +1,7 @@
 """HTTP tests for the clip editor's backend: GET .../edl and POST /api/clip/rerender.
 
 Same conventions as test_mcp_endpoint.py: a real ASGI round-trip against the
-imported app (BILLING_ENABLED=0 via conftest, so the self-host branch runs and
+imported app. The BYOK branch runs and
 no cloud auth or database is involved), with the actual render work stubbed at
 the recut.perform_recut seam — these tests own the ENDPOINT contract: request
 validation, fast/source path choice, 409 on a gone source, and the persistence

@@ -2,7 +2,7 @@
 endpoint contract (validation, metering seam, caption reapply, persistence,
 interplay with whole-clip framing) and the pure apply_crop_overrides math.
 
-Same harness as test_rerender_endpoint.py: BILLING_ENABLED=0 self-host round
+Same harness as test_rerender_endpoint.py: a BYOK round
 trips with the render stubbed at recut.perform_recut.
 """
 
