@@ -1,0 +1,27 @@
+{
+  "name": "renomi",
+  "version": "1.1.0",
+  "description": "Turn long videos (podcasts, webinars, streams) into vertical 9:16 clips with subtitles, re-cut them, and publish them to TikTok, Instagram Reels and YouTube Shorts via the Renomi API or MCP server.",
+  "author": {
+    "name": "Renomi",
+    "url": "https://renomi.us/"
+  },
+  "homepage": "https://github.com/Kiduzz/makeshorts/tree/main/skills/renomi",
+  "repository": "https://github.com/Kiduzz/makeshorts",
+  "license": "MIT",
+  "keywords": [
+    "video",
+    "clips",
+    "shorts",
+    "reels",
+    "tiktok",
+    "youtube shorts",
+    "subtitles",
+    "social media",
+    "publishing",
+    "automation"
+  ],
+  "skills": [
+    "."
+  ]
+}

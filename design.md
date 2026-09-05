@@ -1,4 +1,4 @@
-# Design — OpenShorts
+# Design — Renomi
 
 A locked design system for this app (dashboard + landing). Every page redesign
 reads this file before emitting code. Do not regenerate per page — extend or
@@ -163,6 +163,6 @@ Hash routing (`#app`, `#/pricing`, `#/account`, `#legal`, `#features`,
 `#how-it-works`, `#pricing`, `#comparison`, `#faq` anchors), `billingEnabled` /
 `isManaged` / `isSignedIn` gating, all handlers and props, localStorage keys
 (`gemini_key`, `uploadPostKey_v3`, `elevenLabsKey_v1`, `falKey_v1`,
-`uploadUserId`, `openshorts_session`, `openshorts_auth`,
-`openshorts_skip_landing`), API calls and BYOK headers, QuotaError flows,
+`uploadUserId`, `renomi_session`, `renomi_auth`,
+`renomi_skip_landing`), API calls and BYOK headers, QuotaError flows,
 Remotion preview/render wiring. Redesign is classes + markup structure only.

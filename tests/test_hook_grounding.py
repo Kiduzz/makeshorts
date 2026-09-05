@@ -84,9 +84,9 @@ def gemini(monkeypatch):
     def fake(frames, prompt, api_key):
         seen["frames"] = frames
         seen["prompt"] = prompt
-        return {"on_screen": "Claude settings, MCP connector dialog for OpenShorts",
-                "viral_hook_text": "Conectando OpenShorts a Claude por MCP",
-                "video_title_for_youtube_short": "Así se conecta OpenShorts a Claude (MCP)"}
+        return {"on_screen": "Claude settings, MCP connector dialog for Renomi",
+                "viral_hook_text": "Conectando Renomi a Claude por MCP",
+                "video_title_for_youtube_short": "Así se conecta Renomi a Claude (MCP)"}
 
     monkeypatch.setattr(hg, "_ask_gemini", fake)
     return seen
@@ -97,11 +97,11 @@ def test_rewrites_hook_and_title_and_keeps_the_originals(gemini):
             "video_title_for_youtube_short": "Clips con IA",
             "layout_ranges": SCREEN}
     transcript = {"language": "es", "segments": [
-        {"start": 100, "end": 110, "text": "añadimos el conector de OpenShorts"}]}
+        {"start": 100, "end": 110, "text": "añadimos el conector de Renomi"}]}
 
     changed = hg.reground("clip.mp4", clip, transcript, 100, 130)
 
-    assert clip["viral_hook_text"] == "Conectando OpenShorts a Claude por MCP"
+    assert clip["viral_hook_text"] == "Conectando Renomi a Claude por MCP"
     assert clip["video_title_for_youtube_short"].startswith("Así se conecta")
     assert clip["hook_grounding"]["before"]["viral_hook_text"].startswith("He automatizado")
     assert changed["on_screen"].startswith("Claude settings")

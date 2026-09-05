@@ -1,14 +1,15 @@
-"""OpenShorts CLI: clip long videos into vertical shorts from the terminal.
+"""Renomi CLI: clip long videos into vertical shorts from the terminal.
 
-Zero dependencies by design so `uvx openshorts` and `pipx run openshorts`
+Zero dependencies by design so `uvx renomi` and `pipx run renomi`
 start instantly. Talks to the same REST API the dashboard and the MCP server
 use; nothing here can drift from what the app actually does.
 
-Auth and target come from the environment:
-  OPENSHORTS_API_KEY  osk_... key from the account page (cloud only)
-  OPENSHORTS_API_URL  defaults to https://api.openshorts.app; set to
-                      http://localhost:8000 for a self-hosted instance,
-                      where no key is needed.
+The target comes from the environment:
+  RENOMI_API_URL  defaults to http://localhost:8000
+
+The API has no authentication, so there is no key to configure. If you have
+put your instance behind a gate that needs one, RENOMI_API_KEY is still sent
+as `Authorization: Bearer <value>` when set.
 """
 
 import argparse
@@ -19,17 +20,17 @@ import time
 import urllib.error
 import urllib.request
 
-DEFAULT_API = "https://api.openshorts.app"
+DEFAULT_API = "http://localhost:8000"
 POLL_SECONDS = 10
 
 
 def _base():
-    return os.environ.get("OPENSHORTS_API_URL", DEFAULT_API).rstrip("/")
+    return os.environ.get("RENOMI_API_URL", DEFAULT_API).rstrip("/")
 
 
 def _request(method, path, body=None):
     headers = {"Accept": "application/json"}
-    key = os.environ.get("OPENSHORTS_API_KEY")
+    key = os.environ.get("RENOMI_API_KEY")
     if key:
         headers["Authorization"] = f"Bearer {key}"
     data = None
@@ -97,7 +98,7 @@ def cmd_process(args):
     if args.wait:
         _watch(job_id, as_json=args.json)
     else:
-        print(f"follow it with: openshorts status {job_id} --watch")
+        print(f"follow it with: renomi status {job_id} --watch")
 
 
 def _watch(job_id, as_json=False):
@@ -153,23 +154,6 @@ def cmd_clips(args):
     _print_clips(payload.get("result"))
 
 
-def cmd_quota(args):
-    status, payload = _request("GET", "/api/me")
-    # 401 anonymous, 404 self-host (the cloud router is not mounted): neither
-    # is an error, there is simply no minute quota to report.
-    if status in (401, 404):
-        print("no cloud account in play: self-hosted or anonymous, no minute quota")
-        return
-    if status >= 400:
-        _die(status, payload)
-    if args.json:
-        print(json.dumps(payload))
-        return
-    print(f"plan: {payload.get('plan')}")
-    print(f"minutes: {payload.get('minutes')}")
-    print(f"entitled: {payload.get('entitled')}")
-
-
 def cmd_publish(args):
     body = {
         "job_id": args.job_id,
@@ -190,8 +174,8 @@ def cmd_publish(args):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(
-        prog="openshorts",
-        description="Clip long videos into vertical shorts via the OpenShorts API.",
+        prog="renomi",
+        description="Clip long videos into vertical shorts via the Renomi API.",
     )
     parser.add_argument("--json", action="store_true", help="raw JSON output")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -201,7 +185,7 @@ def main(argv=None):
     p.add_argument("--layouts", help="comma list: auto,split,screencast,speaker_cut,punch_in")
     p.add_argument("--format", help="output format, e.g. 1080p")
     p.add_argument("--webhook", help="webhook URL fired once when the job ends")
-    p.add_argument("--webhook-secret", help="HMAC secret for X-OpenShorts-Signature")
+    p.add_argument("--webhook-secret", help="HMAC secret for X-Renomi-Signature")
     p.add_argument("--wait", action="store_true", help="stream logs until the job ends")
     p.set_defaults(func=cmd_process)
 
@@ -213,9 +197,6 @@ def main(argv=None):
     p = sub.add_parser("clips", help="list finished clips with links")
     p.add_argument("job_id")
     p.set_defaults(func=cmd_clips)
-
-    p = sub.add_parser("quota", help="plan and remaining minutes")
-    p.set_defaults(func=cmd_quota)
 
     p = sub.add_parser("publish", help="post or schedule one clip to social platforms")
     p.add_argument("job_id")

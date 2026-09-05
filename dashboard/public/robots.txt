@@ -1,8 +1,8 @@
-# robots.txt for OpenShorts
+# robots.txt for Renomi
 # Search crawlers and AI crawlers are both welcome. Note that the AI crawlers
-# below do not execute JavaScript, so what they read is the static HTML shipped
-# by the build (the injected homepage content plus the standalone pages under
-# /alternatives and friends), never the hydrated app.
+# below do not execute JavaScript, and this build ships a client-rendered SPA
+# with an empty #root, so what they read is the <head> metadata and nothing
+# else. There is no sitemap: the app is one page behind hash routes.
 
 User-agent: *
 Allow: /
@@ -65,5 +65,3 @@ Allow: /
 
 User-agent: CCBot
 Allow: /
-
-Sitemap: https://www.openshorts.app/sitemap.xml

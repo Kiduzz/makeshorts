@@ -3,13 +3,13 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "openshorts"
+name = "renomi"
 version = "0.1.0"
-description = "CLI for OpenShorts: clip long videos into vertical shorts and publish them, from the terminal"
+description = "CLI for Renomi: clip long videos into vertical shorts and publish them, from the terminal"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
-authors = [{ name = "OpenShorts" }]
+authors = [{ name = "Renomi" }]
 keywords = ["video", "clips", "shorts", "ai", "tiktok", "youtube-shorts", "cli"]
 classifiers = [
   "Environment :: Console",
@@ -19,12 +19,12 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://www.openshorts.app"
-Source = "https://github.com/mutonby/openshorts"
-Documentation = "https://www.openshorts.app/mcp"
+Homepage = "https://renomi.us"
+Source = "https://github.com/Kiduzz/makeshorts"
+Documentation = "https://github.com/Kiduzz/makeshorts#readme"
 
 [project.scripts]
-openshorts = "openshorts_cli:main"
+renomi = "renomi_cli:main"
 
 [tool.setuptools]
-py-modules = ["openshorts_cli"]
+py-modules = ["renomi_cli"]

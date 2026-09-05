@@ -1,32 +1,27 @@
-# OpenShorts CLI
+# Renomi CLI
 
 Clip long videos into vertical 9:16 shorts from the terminal. Zero
 dependencies; talks to the same API the dashboard, the MCP server and the
 webhooks use.
 
 ```bash
-pip install openshorts        # or: uvx openshorts / pipx run openshorts
+pip install ./cli    # not published to PyPI; install from this repo
 
-export OPENSHORTS_API_KEY=osk_...   # from your account page at openshorts.app
+export RENOMI_API_URL=http://localhost:8000   # your instance, this is the default
 
-openshorts process "https://youtube.com/watch?v=..." --wait
-openshorts clips <job_id>
-openshorts publish <job_id> 0 --platforms tiktok,youtube
-openshorts quota
+renomi process "https://youtube.com/watch?v=..." --wait
+renomi clips <job_id>
+renomi publish <job_id> 0 --platforms tiktok,youtube
 ```
 
-Self-hosted instance? Point it at your own machine and skip the key:
-
-```bash
-export OPENSHORTS_API_URL=http://localhost:8000
-openshorts process "https://youtube.com/watch?v=..." --wait
-```
+There is no key to set: the API has no authentication. If you have put your
+instance behind a gate that needs one, `RENOMI_API_KEY` is sent as
+`Authorization: Bearer <value>` when set.
 
 For pipelines, prefer the webhook to `--wait`: pass `--webhook` and
-`--webhook-secret` and OpenShorts POSTs once (HMAC-signed,
-`X-OpenShorts-Signature: sha256=<hex>`) when the job ends, with clip titles
-and durable download links.
+`--webhook-secret` and Renomi POSTs once (HMAC-signed,
+`X-Renomi-Signature: sha256=<hex>`) when the job ends, with clip titles and
+download links.
 
-The hosted free tier is 20 minutes/month with a watermark; paid plans from
-$12/month. The self-hosted edition is MIT and has no meter. Agent-native
-version of the same surface: [openshorts.app/mcp](https://www.openshorts.app/mcp).
+The same surface is available to agents over MCP at `/mcp` — see the repo
+README.

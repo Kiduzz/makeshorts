@@ -4,7 +4,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-OpenShorts is an AI-powered vertical video generator that transforms long YouTube videos or local uploads into viral-ready short clips (9:16 format) for TikTok, Instagram Reels, and YouTube Shorts. Uses Google Gemini 3.1 Flash-Lite (`gemini-3.1-flash-lite`, overridable with `GEMINI_MODEL`) for viral moment detection and title generation.
+Renomi is an AI-powered vertical video generator that transforms long YouTube videos or local uploads into viral-ready short clips (9:16 format) for TikTok, Instagram Reels, and YouTube Shorts. Uses Google Gemini 3.1 Flash-Lite (`gemini-3.1-flash-lite`, overridable with `GEMINI_MODEL`) for viral moment detection and title generation.
+
+**This is a fork of [OpenShorts](https://github.com/mutonby/openshorts) carrying
+the MIT core only.** Upstream keeps its hosted-service layer (billing, metering,
+accounts, Stripe, R2 storage, OAuth) in a `cloud/` directory under a separate
+commercial licence that forbids running it as a hosted or paid service; that
+directory and everything depending on it were removed here. Consequences worth
+knowing before writing code against this repo:
+
+- **No user model.** No accounts, no auth, no sessions, no API keys. `/api/*`
+  and `/mcp` authenticate nobody, and `_assert_job_owner` / `_owner_id` are
+  documented no-ops. Anyone who reaches the backend can spend its API keys.
+- **No metering.** `reserve_managed_action` always returns None and the ~40
+  `if reservation_id:` guards around the endpoints never fire. They are kept
+  deliberately as the seam to rebuild against, not as live code.
+- **One edition.** There is no `BILLING_ENABLED` flag any more; `/api/config`
+  reports `billingEnabled: false` as a constant so the dashboard keeps its
+  account surface hidden.
+- **No marketing or legal site.** The landing, pricing, legal and SEO page
+  generator were removed rather than rebranded: they described a hosted paid
+  service operated by someone else. The dashboard boots straight into the app.
+
+If you pull changes from upstream, do not reintroduce `cloud/` without reading
+its licence there.
 
 ## Development Commands
 
@@ -57,32 +80,6 @@ uvicorn app:app --host 0.0.0.0 --port 8000
 | `translate.py` | ElevenLabs dubbing API for AI voice translation |
 | `dashboard/src/App.jsx` | Main React component with state management |
 | `dashboard/src/components/TranslateModal.jsx` | Voice dubbing UI with language selection |
-| `dashboard/vite-plugin-seo.js` | Build-time SEO surface: injects crawler-visible homepage content, emits static pages, sitemap.xml and llms.txt |
-| `dashboard/seo/data.js` | Single source of truth for pricing, pipeline and competitor facts used by every generated page |
-
-### SEO / AI-crawler surface
-
-The dashboard is a client-rendered SPA with hash routing, so the HTML served for
-`/` used to contain an empty `<div id="root">`. Googlebot renders JavaScript and
-saw the real page; GPTBot, ClaudeBot and PerplexityBot do not and measured the
-homepage as zero characters of text. `vite-plugin-seo.js` fixes that at build time:
-
-- Injects the content of `seo/landing-fallback.js` into `#root`. React's
-  `createRoot().render()` replaces it on mount, so users get the app and
-  non-executing clients get the copy. **Keep it in sync with `Landing.jsx`.**
-- Emits the standalone pages (the `/alternatives` cluster, the clip-generator,
-  open-source, use-case and automation pages, and `/mcp`; the full list is
-  `buildPages()` in `seo/pages.js`) as flat `.html` files.
-  nginx resolves the clean URL through `try_files $uri $uri.html`; serving them as
-  directories instead makes nginx 301 to a trailing slash and every canonical
-  would then point at a redirect.
-- Generates `sitemap.xml` and `llms.txt` from the same page list, so they cannot
-  drift. Do not add a static `public/sitemap.xml` back.
-
-When editing pricing anywhere, edit `seo/data.js` too. Nothing on the site should
-say "OpenShorts is free" without naming the Cloud price in the same breath: both
-are true of different editions and quoting only the first one is what makes AI
-answers describe the paid product as free.
 
 ### Cómo se elige el layout
 
@@ -148,7 +145,7 @@ prompt scores garbage silently). Self-host `/api/process` then accepts a
 request without `X-Gemini-Key` and `/api/config.localLlm` tells the dashboard
 not to demand one. Frame-based stages (`layout_picker`, `screencast_layout`,
 `get_visual_clips`) stay on Gemini and degrade as they always did without a
-key. Never wired in cloud mode: `BILLING_ENABLED` ignores it.
+key.
 
 ### Thumbnail Studio (`thumbnail.py`, `/api/thumbnail/*`)
 
@@ -257,106 +254,34 @@ portrait clip cannot reproduce the shrink either.
 | GET | `/api/translate/languages` | List supported dubbing languages |
 | POST | `/api/social/post` | Post to social media (async upload) |
 | POST | `/mcp` | MCP server (JSON-RPC): the pipeline as agent tools |
-| POST/GET/DELETE | `/api/keys` | User API keys (cloud mode, session JWT only) |
-| DELETE | `/api/account` | Erase the account and everything in it (GDPR art. 17) |
 
-### Agent access (MCP, API keys, webhooks)
+None of these authenticate the caller.
 
-- **API keys** (`cloud/api_keys.py`): `osk_...` tokens, sha256-stored, created in
-  the dashboard account page. `cloud/auth.get_current_user_optional` accepts
-  them (`Bearer osk_...` or `X-API-Key`) and resolves the owner, so metering,
-  entitlement, plan priority and job ownership apply to agents with zero
-  endpoint changes. Key management itself refuses API-key auth: a leaked key
-  cannot mint replacements.
+### Agent access (MCP, webhooks)
+
 - **MCP server** (`mcp_server.py`, mounted always): stateless Streamable-HTTP
-  JSON-RPC at `/mcp` — no SDK dependency, ~3 methods + 8 tools. Each tool calls
+  JSON-RPC at `/mcp` — no SDK dependency, ~3 methods + 7 tools. Each tool calls
   back into this same app in-process (`httpx.ASGITransport`) forwarding the
-  caller's auth headers, so it can never drift from the REST behavior. Cloud
-  mode 401s without a resolvable user; self-host stays BYOK-open.
-- **OAuth for MCP clients** (`cloud/mcp_oauth.py`, cloud mode only): claude.ai
-  and ChatGPT connect by URL, so the server publishes RFC 9728/8414 metadata
-  under `/.well-known/`, accepts dynamic client registration (`POST
-  /oauth/register`, public clients, PKCE S256 mandatory) and bounces
-  `GET /oauth/authorize` to the dashboard consent screen (`#/oauth/authorize`),
-  because the session JWT lives in localStorage on the frontend host and a
-  bare API GET cannot see it. `POST /api/oauth/authorize` (session auth) mints
-  the code; `POST /oauth/token` redeems it by **minting an ordinary `osk_`
-  key** named after the client and returning it as the access token. No new
-  auth path, no refresh tokens: the key shows up in Account → API keys and
-  revoking it disconnects the app. The `/mcp` 401 carries
-  `WWW-Authenticate: Bearer resource_metadata=...` so clients find the flow.
-  `oauth_codes` is in `USER_OWNED_TABLES`; `oauth_clients` deliberately not.
+  caller's headers, so it can never drift from the REST behavior. **It
+  authenticates nobody** — upstream's API-key and OAuth paths went with
+  `cloud/`. Gate it upstream (reverse proxy, network policy) before exposing it.
 - **Webhooks**: `POST /api/process` takes `webhook_url` + optional
-  `webhook_secret` (HMAC-SHA256, `X-OpenShorts-Signature`). Validated with
+  `webhook_secret` (HMAC-SHA256, `X-Renomi-Signature`). Validated with
   `security_utils.assert_public_url` at submit AND at delivery (DNS rebinding).
-  Fired once per job from `run_job_wrapper` after the R2 archive so the payload
-  can carry durable download links; survives redeploys via the resume manifest.
-  `PUBLIC_API_URL` env sets the absolute-URL base when behind a proxy.
-
-### Account erasure (GDPR art. 17)
-
-`DELETE /api/account` (`cloud/account.py`, dashboard: Account → Delete account)
-is immediate and irreversible: there is no recovery window because after the
-delete there is nothing left to authenticate a recovery request against. It
-refuses API-key auth (a leaked `osk_` must not destroy its own account) and
-requires the caller to retype the account email.
-
-The order of the steps is the design, and each one is a failure mode:
-**Stripe cancel first**, aborting the whole thing if it fails, so we never erase
-a user we are still billing; **R2 before the database**, because those rows are
-the only index of which objects are theirs and dropping them first turns a
-failed purge into permanent orphans; the DB delete is **one transaction** over
-an explicit table list (`USER_OWNED_TABLES`) rather than the declared ON DELETE
-CASCADEs, since `create_all` never ALTERs an existing table and a constraint
-added after a table shipped exists in the models but not in production.
-`tests/test_account_erasure.py` fails if a new table references `users.id`
-without joining that list.
-
-`app.py` registers a callback for the local working files, which record
-ownership three different ways: the `.owner` file clip jobs write (so jobs
-recovered from disk after a restart count too), `saas_jobs`, and
-`thumbnail_sessions`. That last one is the only thing that ever deletes
-generated thumbnails: the hourly sweep skips their directory and they are
-served publicly at `/thumbnails/`.
-
-What deliberately survives: the Stripe customer and its invoices (6-year
-retention, Spanish commercial law) and one `account_deletions` row holding a
-sha256 of the email as proof the erasure happened, itself purged after 5 years.
-The "why are you leaving" answer is a closed list (`DELETION_REASONS`), never
-free text — anything the user could type would land in a row designed to
-outlive them. Deleting users also made one webhook path reachable that never
-was before: `_apply_topup` reads the user id from Stripe metadata, so it now
-confirms the row still exists before inserting, or the FK violation makes
-Stripe retry the same doomed event for three days.
+  Fired once per job from `run_job_wrapper`; survives redeploys via the resume
+  manifest. `PUBLIC_API_URL` env sets the absolute-URL base when behind a proxy.
+  The payload carries no `download_url`: that was the R2 presigned link, so a
+  consumer must fetch `video_url` before `JOB_RETENTION_SECONDS` expires.
 
 ### Concurrency Model
 Async job queue with semaphore-based concurrency control. Configure via `MAX_CONCURRENT_JOBS` env var (default: 5). Jobs auto-cleanup after 1 hour.
 
-### Paid proxy accounting (`cloud/proxy_ledger.py`)
-
-Downloads go direct → static ISP proxies (flat rate) → DataImpulse (per GB),
-and the duration probe (`cloud/metering.probe_url_minutes`) follows the same
-order. Two rules keep the per-GB proxy at zero on a normal day: the probe
-reaches it **only** when a static route failed for a reason another IP can
-fix (`static_failure_warrants_paid`: bot-check, 403/429, proxy/network
-errors), never for a private/removed/members-only video or a live stream
-with no duration (those failed the same on every IP and used to cost ~1.7 MB
-× 2 extractors each), and **never for a non-YouTube URL** (the download
-plan already excluded those; Twitch, Kick, Rumble and product pages were
-reaching it through the probe). `main.py` prints `PROXY_ROUTE=<json>` after
-every download (winner, paid bytes across all attempts including failed
-paid ones, each free attempt's error); `app.py` persists it as a
-`proxy_usage` row at job end and pages Telegram when the paid proxy carried
-bytes, folding a burst into one message per 5 min. The in-memory monthly
-counter and the container log (rotates within the hour) cannot answer "what
-cost $14 on the 28th"; the table can. On the dev Mac, do not keep
-`PROXY_URL` in `.env`: every local `main.py` run then bills DataImpulse.
-
 ### Deploys and running jobs (handover + drain)
 
-Every push to `main` redeploys the API container. Coolify starts the NEW
-container before stopping the old one (rolling update) and both share
-`output/`, so `app.py` coordinates them instead of relying on a fast swap:
+`app.py` carries handover machinery inherited from upstream's deployment, where
+a rolling update starts the NEW container before stopping the old one and both
+share `output/`. It costs nothing when you run a single instance, and it is what
+keeps a redeploy from losing or double-running a job when you do not:
 
 - Each instance writes its id to `output/.instance` at startup. An instance
   that sees another id there is the old one and **drains**: it finishes the

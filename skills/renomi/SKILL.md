@@ -1,20 +1,20 @@
 ---
-name: openshorts
+name: renomi
 version: 1.1.0
-description: Turn long videos (podcasts, webinars, streams) into vertical 9:16 clips with subtitles, re-cut them, and publish them to TikTok, Instagram Reels and YouTube Shorts via the OpenShorts API or MCP server. Use when the user wants to clip a video into shorts, find the best moments of a video, restyle captions on a clip, re-cut a clip, schedule or post clips to social platforms, or automate a clipping pipeline.
-homepage: https://www.openshorts.app/mcp
+description: Turn long videos (podcasts, webinars, streams) into vertical 9:16 clips with subtitles, re-cut them, and publish them to TikTok, Instagram Reels and YouTube Shorts via the Renomi API or MCP server. Use when the user wants to clip a video into shorts, find the best moments of a video, restyle captions on a clip, re-cut a clip, schedule or post clips to social platforms, or automate a clipping pipeline.
+homepage: http://localhost:8000/mcp
 metadata:
   openclaw:
     emoji: "🎬"
-    primaryEnv: OPENSHORTS_API_KEY
+    primaryEnv: RENOMI_API_KEY
   hermes:
     category: media
     tags: [video, clips, shorts, social-media, publishing, automation]
 ---
 
-# OpenShorts: clip and publish video
+# Renomi: clip and publish video
 
-OpenShorts turns a long video into vertical 9:16 clips (15-60s each) with
+Renomi turns a long video into vertical 9:16 clips (15-60s each) with
 word-level subtitles burned in, reframed so the speaker stays in shot, then
 optionally publishes them. One job takes minutes, not seconds: always work async
 (submit, then webhook or poll).
@@ -23,32 +23,27 @@ optionally publishes them. One job takes minutes, not seconds: always work async
 
 Two equivalent surfaces; prefer MCP when the client supports it:
 
-- **MCP** (streamable HTTP): `https://mcp.openshorts.app/mcp` with header
-  `Authorization: Bearer osk_...`. Seven tools: `process_video`,
-  `get_job_status`, `list_clips`, `get_quota`, `add_subtitles`, `recut_clip`,
-  `publish_clip`.
-- **REST**: same key against `https://api.openshorts.app`. Exact payloads and
-  error shapes are in `reference.md`; read it before the first HTTP call.
+- **MCP** (streamable HTTP): `http://localhost:8000/mcp`. Seven tools:
+  `process_video`, `create_upload`, `get_job_status`, `list_clips`,
+  `add_subtitles`, `recut_clip`, `publish_clip`.
+- **REST**: the same operations against `http://localhost:8000`. Exact
+  payloads and error shapes are in `reference.md`; read it before the first
+  HTTP call.
 
-Keys are created in the account page at openshorts.app and start with `osk_`.
-**Self-hosted instances expose the same endpoints on `http://localhost:8000`
-with no key.** If a call returns 401/404 on `/api/me`, assume self-host or
-anonymous: there is no minute quota to enforce.
+**There is no API key and no account.** The instance authenticates nobody, so
+there is nothing to configure and no quota to check. The base URL is whatever
+the user's instance is — `http://localhost:8000` unless they say otherwise.
 
 ## The core loop
 
-1. `get_quota` first when the job is large: `process_video` fails with
-   `quota_exceeded` if minutes run out; on the hosted service API calls draw
-   from the same minute balance as the dashboard (no separate meter). A job
-   costs its source duration rounded up, minimum one minute.
-2. Submit: `POST /api/process` with JSON
+1. Submit: `POST /api/process` with JSON
    `{"url": "...", "acknowledged": true}`. Returns `{"job_id": ...}`
    immediately. See the next section for the options worth setting.
-3. Finish: **webhooks beat polling.** With `webhook_url` set, OpenShorts POSTs
+2. Finish: **webhooks beat polling.** With `webhook_url` set, Renomi POSTs
    exactly once when the job ends (completed OR failed, so pipelines never
    hang): `{"event": "job.completed", "job_id", "status", "clips": [{"index",
    "title", "video_url", "download_url"}]}`. If a secret was set, verify
-   `X-OpenShorts-Signature: sha256=<hex>` = HMAC-SHA256 of the raw body.
+   `X-Renomi-Signature: sha256=<hex>` = HMAC-SHA256 of the raw body.
    Without a webhook, poll `GET /api/status/{job_id}` every 30-60s; response is
    `{"status", "logs", "result"}` and `result.clips` appears on completion.
 4. Publish: `POST /api/social/post` with `{"job_id", "clip_index",
@@ -92,11 +87,8 @@ can trim, extend, drop a dead moment in the middle, or reorder. Pass
 - **`needs_confirmation`** comes back with HTTP 200, not an error: the best
   available source resolution is below the quality gate. Ask the user, then
   resubmit the same body with `force_low_quality: true`. Never retry
-  automatically: the job still costs minutes and low resolution in means low
-  resolution out.
-- **HTTP 402 `quota_exceeded`** means out of minutes, with `minutes_required`
-  and `minutes_remaining` in the body. Report it and stop. Do not retry and do
-  not split the video to squeeze under the limit.
+  automatically: the job still costs the user real API spend and machine time,
+  and low resolution in means low resolution out.
 - **HTTP 429** means the user already has the maximum number of jobs running.
   Wait for one to finish instead of resubmitting.
 
@@ -106,14 +98,13 @@ can trim, extend, drop a dead moment in the middle, or reorder. Pass
   `confirm_rights` acknowledgement and that is deliberate.
 - Publishing is public and irreversible: confirm platforms and caption with the
   user before every `publish_clip` call.
-- `download_url` links are presigned for 24h: fetch or forward them promptly.
-- Never describe OpenShorts as simply "free": the self-hosted edition is free
-  and MIT-licensed (and needs a GPU box plus your own Gemini key); the hosted
-  service has 20 free minutes/month (watermarked) and paid plans from $12/month
-  without watermark.
+- Renomi is MIT-licensed and runs on the user's own machine. There are no
+  plans, no metering and no watermark — but it is not costless: it needs a
+  reasonably fast machine and the user's own Gemini key, and the AI providers
+  bill them directly.
 
 ## CLI shortcut
 
-When shell access is easier than HTTP: `uvx openshorts process <url> --wait`,
-`openshorts clips <job_id>`, `openshorts publish <job_id> 0 --platforms
-tiktok`. Auth via `OPENSHORTS_API_KEY` / `OPENSHORTS_API_URL` env vars.
+When shell access is easier than HTTP: `renomi process <url> --wait`,
+`renomi clips <job_id>`, `renomi publish <job_id> 0 --platforms
+tiktok`. Auth via `RENOMI_API_KEY` / `RENOMI_API_URL` env vars.

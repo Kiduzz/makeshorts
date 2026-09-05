@@ -1,9 +1,9 @@
 {
-  "name": "Clip new YouTube uploads into viral shorts with open-source OpenShorts and publish after Telegram approval",
+  "name": "Clip new YouTube uploads into viral shorts with open-source Renomi and publish after Telegram approval",
   "nodes": [
     {
       "parameters": {
-        "content": "## Clip your YouTube channel and publish after approval\n\n**Who's it for**\nCreators and small teams who publish long videos and want shorts from them without\nhanding the publish button to a machine. It suits anyone who already runs n8n and\ndoes not want to build the clipping and the multi-platform posting themselves.\n\n**What it does**\nOnce a day it reads your channel RSS feed and picks one video: your newest upload,\nor the next unprocessed one from the back catalogue. It sends that video to\nOpenShorts, which returns finished 9:16 clips with subtitles through a webhook, so\nthere is no polling loop. Each clip arrives in Telegram with Publish and Skip\nbuttons. Approved clips are scheduled one per day to the social accounts connected\nin your OpenShorts account, and every Sunday the workflow reports the impressions\nand best post of what it published.\n\n**How to set up**\n1. Create an API key at openshorts.app and add it as a Header Auth credential\n   (Name: Authorization, Value: Bearer osk_...).\n2. Create a Telegram bot with @BotFather and add the Telegram credential.\n3. Fill the three **Settings** nodes with your YouTube channel id and Telegram chat id.\n4. Copy the production URL of the *Clips ready* webhook node into the\n   `webhook_url` field of *Start OpenShorts job*.\n\n**Requirements**\nAn OpenShorts account (free tier covers 20 minutes of video a month, paid plans\nfrom $12/month) or a self-hosted instance, a Telegram bot, and an n8n reachable\nover https so Telegram can register the approval buttons.\n\n**How to customize**\nChange the schedule to clip more or less often, edit the platforms list in\n*Schedule social post*, widen the posting rhythm in *Pick next free slot*, or\nreplace the Telegram approval with your own review step.",
+        "content": "## Clip your YouTube channel and publish after approval\n\n**Who's it for**\nCreators and small teams who publish long videos and want shorts from them without\nhanding the publish button to a machine. It suits anyone who already runs n8n and\ndoes not want to build the clipping and the multi-platform posting themselves.\n\n**What it does**\nOnce a day it reads your channel RSS feed and picks one video: your newest upload,\nor the next unprocessed one from the back catalogue. It sends that video to\nRenomi, which returns finished 9:16 clips with subtitles through a webhook, so\nthere is no polling loop. Each clip arrives in Telegram with Publish and Skip\nbuttons. Approved clips are scheduled one per day to the social accounts connected\nin Upload-Post, and every Sunday the workflow reports the impressions\nand best post of what it published.\n\n**How to set up**\n1. Point the HTTP nodes at your Renomi instance. There is no API key: the API\n   has no authentication.\n2. Create a Telegram bot with @BotFather and add the Telegram credential.\n3. Fill the three **Settings** nodes with your YouTube channel id and Telegram chat id.\n4. Copy the production URL of the *Clips ready* webhook node into the\n   `webhook_url` field of *Start Renomi job*.\n\n**Requirements**\nA running Renomi instance reachable from n8n, your own Gemini and Upload-Post\nkeys on it, a Telegram bot, and an n8n reachable over https so Telegram can\nregister the approval buttons.\n\n**How to customize**\nChange the schedule to clip more or less often, edit the platforms list in\n*Schedule social post*, widen the posting rhythm in *Pick next free slot*, or\nreplace the Telegram approval with your own review step.",
         "height": 900,
         "width": 460,
         "color": 3
@@ -19,7 +19,7 @@
     },
     {
       "parameters": {
-        "content": "## ACT 1 \u2014 Watch the channel (daily)\n\nOnce a day this branch reads your channel's RSS feed and picks **one** video to clip: a new upload if there is one, otherwise the next unprocessed video from your back catalog (newest first). One video per day keeps your quota burn predictable.\n\n**Setup**: put your channel id in the *Channel RSS feed* node (`https://www.youtube.com/feeds/videos.xml?channel_id=UC...`). Find it at youtube.com \u2192 your channel \u2192 About \u2192 Share \u2192 Copy channel ID.\n\nIf OpenShorts answers 402 (out of minutes) the machine pauses and tells you on Telegram instead of failing silently.",
+        "content": "## ACT 1 \u2014 Watch the channel (daily)\n\nOnce a day this branch reads your channel's RSS feed and picks **one** video to clip: a new upload if there is one, otherwise the next unprocessed video from your back catalog (newest first). One video per day keeps your quota burn predictable.\n\n**Setup**: put your channel id in the *Channel RSS feed* node (`https://www.youtube.com/feeds/videos.xml?channel_id=UC...`). Find it at youtube.com \u2192 your channel \u2192 About \u2192 Share \u2192 Copy channel ID.\n\nIf Renomi answers 402 (out of minutes) the machine pauses and tells you on Telegram instead of failing silently.",
         "height": 420,
         "width": 400,
         "color": 7
@@ -83,7 +83,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.openshorts.app/api/process",
+        "url": "http://localhost:8000/api/process",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
@@ -92,7 +92,7 @@
         "options": {}
       },
       "id": "start-job",
-      "name": "Start OpenShorts job",
+      "name": "Start Renomi job",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -102,13 +102,13 @@
       "onError": "continueErrorOutput",
       "credentials": {
         "httpHeaderAuth": {
-          "name": "OpenShorts API key"
+          "name": "Renomi API key"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// Only mark the video done once OpenShorts accepted the job \u2014 a failed\n// submit (quota, downtime) leaves it unmarked so tomorrow retries it.\nconst staticData = $getWorkflowStaticData('global');\nconst done = staticData.processedVideos || [];\nconst url = $('Pick next video').first().json.url;\nif (!done.includes(url)) {\n  done.push(url);\n}\nstaticData.processedVideos = done;\nreturn $input.all();"
+        "jsCode": "// Only mark the video done once Renomi accepted the job \u2014 a failed\n// submit (quota, downtime) leaves it unmarked so tomorrow retries it.\nconst staticData = $getWorkflowStaticData('global');\nconst done = staticData.processedVideos || [];\nconst url = $('Pick next video').first().json.url;\nif (!done.includes(url)) {\n  done.push(url);\n}\nstaticData.processedVideos = done;\nreturn $input.all();"
       },
       "id": "mark-processed",
       "name": "Mark video as processed",
@@ -142,7 +142,7 @@
     {
       "parameters": {
         "chatId": "={{ $('Settings').first().json.telegram_chat_id }}",
-        "text": "\u26a0\ufe0f Autopilot paused: OpenShorts rejected the job (most likely you're out of minutes this month). The video was NOT marked as processed, so it will be retried tomorrow. Top up or upgrade at https://www.openshorts.app/",
+        "text": "\u26a0\ufe0f Autopilot paused: Renomi rejected the job. The video was NOT marked as processed, so it will be retried tomorrow. Check the instance logs for the reason.",
         "additionalFields": {}
       },
       "id": "tg-quota",
@@ -161,7 +161,7 @@
     },
     {
       "parameters": {
-        "content": "## ACT 2 \u2014 Clips arrive on your phone\n\n**No polling, no Wait-node loop.** OpenShorts calls this webhook once per job (success **and** failure, so nothing ever hangs). Each finished 9:16 clip lands in your Telegram with two buttons: \u2705 publish or \u274c skip \u2014 a human approves every post, which is also what keeps you on the right side of YouTube's inauthentic-content policy.\n\n**Setup**: copy the **production** URL of the *Clips ready* webhook node and paste it as `webhook_url` inside *Start OpenShorts job*. Telegram fetches videos by URL up to ~20 MB; bigger clips fall back to a message with the download link and the same buttons.",
+        "content": "## ACT 2 \u2014 Clips arrive on your phone\n\n**No polling, no Wait-node loop.** Renomi calls this webhook once per job (success **and** failure, so nothing ever hangs). Each finished 9:16 clip lands in your Telegram with two buttons: \u2705 publish or \u274c skip \u2014 a human approves every post, which is also what keeps you on the right side of YouTube's inauthentic-content policy.\n\n**Setup**: copy the **production** URL of the *Clips ready* webhook node and paste it as `webhook_url` inside *Start Renomi job*. Telegram fetches videos by URL up to ~20 MB; bigger clips fall back to a message with the download link and the same buttons.",
         "height": 380,
         "width": 400,
         "color": 7
@@ -178,7 +178,7 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "openshorts-machine-clips",
+        "path": "renomi-machine-clips",
         "options": {}
       },
       "id": "clips-webhook",
@@ -329,7 +329,7 @@
     {
       "parameters": {
         "chatId": "={{ $('Settings (clips)').first().json.telegram_chat_id }}",
-        "text": "=\u274c OpenShorts job failed: {{ $json.body.error || 'unknown error' }}\n\nNothing was published. The machine keeps running tomorrow.",
+        "text": "=\u274c Renomi job failed: {{ $json.body.error || 'unknown error' }}\n\nNothing was published. The machine keeps running tomorrow.",
         "additionalFields": {}
       },
       "id": "tg-job-failed",
@@ -348,7 +348,7 @@
     },
     {
       "parameters": {
-        "content": "## ACT 3 \u2014 Tap \u2705, it gets scheduled\n\nThe Telegram trigger listens for the approval buttons. Every approved clip is scheduled through OpenShorts (which posts to every social account you connected there) at a rate of **one post per day**: approve five clips today and you just filled five days of content.\n\nThe next free slot is computed from the **queue the server actually holds** (`GET /api/social/scheduled`), not from a counter inside n8n \u2014 two clips approved seconds apart would otherwise both book the same slot and go out together.\n\n**Setup**: none beyond the Telegram credential \u2014 the chat id comes from the button tap itself. Change the platforms list in *Schedule social post* if you want fewer networks.",
+        "content": "## ACT 3 \u2014 Tap \u2705, it gets scheduled\n\nThe Telegram trigger listens for the approval buttons. Every approved clip is scheduled through Renomi (which posts to every social account you connected there) at a rate of **one post per day**: approve five clips today and you just filled five days of content.\n\nThe next free slot is computed from the **queue the server actually holds** (`GET /api/social/scheduled`), not from a counter inside n8n \u2014 two clips approved seconds apart would otherwise both book the same slot and go out together.\n\n**Setup**: none beyond the Telegram credential \u2014 the chat id comes from the button tap itself. Change the platforms list in *Schedule social post* if you want fewer networks.",
         "height": 380,
         "width": 400,
         "color": 7
@@ -445,7 +445,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.openshorts.app/api/social/post",
+        "url": "http://localhost:8000/api/social/post",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
@@ -464,7 +464,7 @@
       "onError": "continueErrorOutput",
       "credentials": {
         "httpHeaderAuth": {
-          "name": "OpenShorts API key"
+          "name": "Renomi API key"
         }
       }
     },
@@ -491,7 +491,7 @@
     {
       "parameters": {
         "chatId": "={{ $('Parse button').first().json.chat_id }}",
-        "text": "=\u26a0\ufe0f Could not schedule that clip: {{ $json.error && $json.error.message ? $json.error.message : 'posting failed' }}. Make sure your social accounts are connected in your OpenShorts account page.",
+        "text": "=\u26a0\ufe0f Could not schedule that clip: {{ $json.error && $json.error.message ? $json.error.message : 'posting failed' }}. Make sure your social accounts are connected in Upload-Post.",
         "additionalFields": {}
       },
       "id": "tg-post-failed",
@@ -511,7 +511,7 @@
     {
       "parameters": {
         "chatId": "={{ $('Parse button').first().json.chat_id }}",
-        "text": "\ud83d\uddd1 Skipped. It stays in your OpenShorts dashboard if you change your mind.",
+        "text": "\ud83d\uddd1 Skipped. It stays in your Renomi dashboard if you change your mind.",
         "additionalFields": {}
       },
       "id": "tg-skipped",
@@ -530,7 +530,7 @@
     },
     {
       "parameters": {
-        "content": "## ACT 4 \u2014 The feedback loop: learn what worked\n\nOnce a week the machine reads the analytics of everything it published (via the OpenShorts analytics API, which aggregates TikTok/Instagram/YouTube numbers) and sends you the verdict: total impressions, per-platform split, and your best post.\n\nThe machine that posts is the machine that measures \u2014 so every approval you make next week is informed by what actually landed. Close the loop further by feeding your winners back as examples in your clip prompts.",
+        "content": "## ACT 4 \u2014 The feedback loop: learn what worked\n\nOnce a week the machine reads the analytics of everything it published (via the Renomi analytics API, which aggregates TikTok/Instagram/YouTube numbers) and sends you the verdict: total impressions, per-platform split, and your best post.\n\nThe machine that posts is the machine that measures \u2014 so every approval you make next week is informed by what actually landed. Close the loop further by feeding your winners back as examples in your clip prompts.",
         "height": 340,
         "width": 400,
         "color": 7
@@ -569,7 +569,7 @@
     },
     {
       "parameters": {
-        "url": "https://api.openshorts.app/api/social/analytics/impressions",
+        "url": "http://localhost:8000/api/social/analytics/impressions",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendQuery": true,
@@ -597,13 +597,13 @@
       ],
       "credentials": {
         "httpHeaderAuth": {
-          "name": "OpenShorts API key"
+          "name": "Renomi API key"
         }
       }
     },
     {
       "parameters": {
-        "url": "https://api.openshorts.app/api/social/analytics/posts",
+        "url": "http://localhost:8000/api/social/analytics/posts",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendQuery": true,
@@ -627,7 +627,7 @@
       ],
       "credentials": {
         "httpHeaderAuth": {
-          "name": "OpenShorts API key"
+          "name": "Renomi API key"
         }
       }
     },
@@ -666,7 +666,7 @@
     },
     {
       "parameters": {
-        "url": "https://api.openshorts.app/api/social/scheduled",
+        "url": "http://localhost:8000/api/social/scheduled",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {}
@@ -681,7 +681,7 @@
       ],
       "credentials": {
         "httpHeaderAuth": {
-          "name": "OpenShorts API key"
+          "name": "Renomi API key"
         }
       }
     },
@@ -789,14 +789,14 @@
       "main": [
         [
           {
-            "node": "Start OpenShorts job",
+            "node": "Start Renomi job",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Start OpenShorts job": {
+    "Start Renomi job": {
       "main": [
         [
           {

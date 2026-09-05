@@ -82,9 +82,9 @@ COPY . .
 
 # Register the bundled fonts (Anton for Impact) and the UI-name -> real-font
 # aliases with fontconfig so libass resolves what the subtitle modal offers.
-RUN mkdir -p /usr/local/share/fonts/openshorts \
-    && cp fonts/*.ttf /usr/local/share/fonts/openshorts/ \
-    && cp fonts/openshorts-fontmap.conf /etc/fonts/conf.d/60-openshorts.conf \
+RUN mkdir -p /usr/local/share/fonts/renomi \
+    && cp fonts/*.ttf /usr/local/share/fonts/renomi/ \
+    && cp fonts/renomi-fontmap.conf /etc/fonts/conf.d/60-renomi.conf \
     && fc-cache -f
 
 # Create a non-root user (Moved up)

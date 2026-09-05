@@ -1,38 +1,47 @@
-# OpenShorts.app
+# Renomi
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Open Source](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://opensource.org/)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://docs.docker.com/compose/)
-[![GitHub stars](https://img.shields.io/github/stars/mutonby/openshorts?style=social)](https://github.com/mutonby/openshorts)
-[![Last Commit](https://img.shields.io/github/last-commit/mutonby/openshorts)](https://github.com/mutonby/openshorts/commits/main)
 
-**Open source AI video platform** with 3 tools in one: **Clip Generator**, **AI Shorts (UGC videos with AI actors)**, and **YouTube Studio**.
+**Self-hosted AI video platform** with three tools in one: **Clip Generator**,
+**AI Shorts (UGC videos with AI actors)** and **YouTube Studio**. Point it at a
+long video and it hands back vertical clips ready for TikTok, Reels and Shorts.
 
-![Your podcast, and the vertical clip OpenShorts makes of it: both speakers stacked, captions on the seam](screenshots/split-before-after.gif)
+![Your podcast, and the vertical clip Renomi makes of it: both speakers stacked, captions on the seam](screenshots/split-before-after.gif)
 
-Two people on camera? OpenShorts stacks them instead of shrinking the wide shot, puts the captions on the seam where they cover nobody, and switches back to a face-tracked crop when the cut goes to one person. The AI picks the layout per video; nothing to configure.
+Two people on camera? Renomi stacks them instead of shrinking the wide shot,
+puts the captions on the seam where they cover nobody, and switches back to a
+face-tracked crop when the cut goes to one person. The AI picks the layout per
+video; nothing to configure.
 
-**Two ways to run it, same software either way:**
+## How this runs
 
-|  | Self-hosted (this repo) | Hosted on [openshorts.app](https://www.openshorts.app/) |
-|---|---|---|
-| **Price** | Free forever, MIT | Free plan, paid from $12/mo |
-| **Speed** | 5 to 8 min per 8-min video on CPU | About 50s on our NVIDIA GPU |
-| **API keys** | Bring your own Gemini, ElevenLabs, fal.ai | Gemini included, nothing to set up |
-| **Watermark / limits** | None, ever | Watermark and 20 min/mo on the free plan, neither on paid |
-| **Setup** | Docker, 8GB+ RAM, model downloads | Sign in and paste a link |
-| **MCP / API for agents** | Same `/mcp` endpoint, but only while your machine is on | Always-on endpoint at [mcp.openshorts.app](https://www.openshorts.app/mcp), API keys in one click |
-| **Your data** | Your server | Ours |
+**It runs on your machine, and it is the only edition there is.** There are no
+plans, no accounts, no metering and no watermark — the app never asks who you
+are. You bring your own API keys (Gemini, and optionally ElevenLabs / fal.ai /
+Upload-Post) and you pay those providers directly. See
+[How much does it cost?](#how-much-does-it-cost) for what that actually comes to.
 
-Self-hosting is genuinely free and always will be. It costs you a machine, your own API keys and the time to keep it running. The hosted plans exist to cover that hardware and those keys, not to unlock features.
+The backend and the dashboard can live in different places. The dashboard is a
+static SPA, so it deploys to Cloudflare Pages, Netlify or any static host; point
+it at your backend by setting `VITE_API_URL` at build time:
 
-https://github.com/user-attachments/assets/b45fa983-16b4-48b5-ac5b-a267836b9ad9
+```bash
+cd dashboard
+VITE_API_URL=https://your-backend-host npm run build   # dist/ is the deployable
+```
 
+Leave `VITE_API_URL` unset and the dashboard uses relative paths, which is what
+you want when both are served from the same origin (the Docker Compose setup
+below). The backend answers CORS with `*`, so a cross-origin dashboard works
+out of the box.
 
+> **Exposing the backend?** It has no authentication of any kind — anyone who can
+> reach it can spend your API keys and your CPU, and `/mcp` is open too. Keep it
+> on localhost, a VPN or Tailscale, or put your own auth in front of it.
 
 ### Video Tutorial: How it works
-[![OpenShorts Tutorial](https://img.youtube.com/vi/xlyjD1qCaX0/maxresdefault.jpg)](https://www.youtube.com/watch?v=xlyjD1qCaX0 "Click to watch the video on YouTube")
+[![Renomi Tutorial](https://img.youtube.com/vi/xlyjD1qCaX0/maxresdefault.jpg)](https://www.youtube.com/watch?v=xlyjD1qCaX0 "Click to watch the video on YouTube")
 
 *Click the image above to watch the full walkthrough.*
 
@@ -67,7 +76,8 @@ Complete free AI YouTube toolkit: thumbnails, titles, descriptions, and direct p
 - One-click publish to YouTube
 
 ### UGC Video Gallery
-All generated videos and avatars are saved to a public gallery with SEO pages for each video.
+Generated videos and avatars are saved to a gallery your instance serves, with
+a shareable page per video.
 
 ![UGC Gallery](screenshots/ugc-gallery.png)
 
@@ -108,7 +118,7 @@ All generated videos and avatars are saved to a public gallery with SEO pages fo
 
 ### Social Auto-Publishing
 - **One-click posting** to TikTok, Instagram Reels, and YouTube Shorts simultaneously
-- **Schedule uploads** for any date and time — plan your content calendar and let OpenShorts publish automatically
+- **Schedule uploads** for any date and time — plan your content calendar and let Renomi publish automatically
 - **Multi-platform distribution** — publish to all your social networks at once from a single interface
 - Upload-Post integration with async uploads
 
@@ -131,46 +141,9 @@ All generated videos and avatars are saved to a public gallery with SEO pages fo
 
 ---
 
-## AI Shorts Showcase
+## How much does it cost?
 
-Videos generated with OpenShorts AI Shorts — no camera, no studio, no actors:
-
-| | | |
-|:---:|:---:|:---:|
-| [![Biohacking for Investors](https://test-videos-upload-post.s3.eu-west-3.amazonaws.com/videos/cdceec1b/actor.png)](https://openshorts.app/video/cdceec1b) | [![Secret Weapon for Devs](https://test-videos-upload-post.s3.eu-west-3.amazonaws.com/videos/d3a80b6b/actor.png)](https://openshorts.app/video/d3a80b6b) | [![El Secreto de los Agentes de IA](https://test-videos-upload-post.s3.eu-west-3.amazonaws.com/videos/8ab7de92/actor.png)](https://openshorts.app/video/8ab7de92) |
-| **Biohacking for Investors** · LOW COST | **Secret Weapon for Devs** · LOW COST | **El Secreto de los Agentes de IA** · PREMIUM |
-
-> Browse all videos at [openshorts.app/gallery](https://openshorts.app/gallery)
-
----
-
-## OpenShorts vs Competitors
-
-| Feature | OpenShorts | Opus Clip | CapCut | Vizard | Klap | Descript |
-|---------|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Price** | **Free self-hosted**<br>from $12/mo hosted | $15-29/mo | $8/mo | $15-20/mo | $23-63/mo | $24-65/mo |
-| **Self-hosted** | **Yes** | No | No | No | No | No |
-| **Open source** | **Yes** | No | No | No | No | No |
-| **Watermark** | **Never self-hosted**<br>free plan only when hosted | Free tier | Some | Free tier | Free tier | Free tier |
-| **Upload limits** | **None self-hosted**<br>by plan when hosted | 10-30GB | Credit-based | 60min-10hr | 10-100 vids/mo | 60min-40hr |
-| **AI clip detection** | Yes | Yes | Yes | Yes | Yes | Yes |
-| **Smart 9:16 reframing** | Yes | Yes | Yes | Yes | Yes | No |
-| **Auto subtitles** | Yes | Yes | Yes | Yes | Yes | Yes |
-| **Voice dubbing (30+ langs)** | Yes | No | Pro only | No | Pro only | Business only |
-| **AI UGC actors** | **Yes** | No | No | No | No | No |
-| **AI video effects** | Yes | No | Yes | No | No | No |
-| **Hook text overlays** | Yes | No | No | No | No | No |
-| **YouTube Studio (titles, thumbnails)** | **Yes** | No | No | No | No | No |
-| **Social auto-publishing** | Yes | Pro only | TikTok only | Paid only | Paid only | No |
-| **Schedule uploads** | Yes | Pro only | No | Paid only | Paid only | No |
-| **Data privacy** | **Your server** | Their cloud | Their cloud | Their cloud | Their cloud | Their cloud |
-| **Works with a local LLM (Ollama)** | **Yes** | No | No | No | No | No |
-
----
-
-## How Much Does It Cost?
-
-Self-hosting OpenShorts is free. You provide the machine and you only pay for the AI APIs you use, and most have generous free tiers:
+Renomi itself is free. You provide the machine and pay only for the APIs you use, most of which have a free tier:
 
 | Service | Free Tier | Paid Cost | Used For |
 |---------|-----------|-----------|----------|
@@ -182,8 +155,6 @@ Self-hosting OpenShorts is free. You provide the machine and you only pay for th
 | **AWS S3** | Optional | ~$0.023/GB | Cloud backup for clips and gallery |
 
 **Bottom line:** You can clip videos for practically free with Gemini, and publish 10 videos/month to all social networks at zero cost with Upload-Post.
-
-**Don't want to run any of that?** [openshorts.app](https://www.openshorts.app/) is the same software on our hardware: our NVIDIA GPU clips an 8-minute video in about 50 seconds instead of the 5 to 8 minutes it takes on a typical CPU, the Gemini key is included, and auto-publishing is already wired up. Free plan is 20 minutes a month with a watermark and no credit card; paid plans start at $12/mo for 100 minutes without watermark.
 
 ---
 
@@ -201,8 +172,8 @@ Self-hosting OpenShorts is free. You provide the machine and you only pay for th
 
 ### 1. Clone
 ```bash
-git clone https://github.com/mutonby/openshorts.git
-cd OpenShorts
+git clone https://github.com/Kiduzz/makeshorts.git
+cd Renomi
 ```
 
 ### 2. Configure (optional)
@@ -266,8 +237,8 @@ ASR_GPU_CONCURRENCY=1
 **Verify:**
 ```bash
 docker compose up --build -d
-docker exec openshorts-backend nvidia-smi -L
-docker exec openshorts-backend ffmpeg -hide_banner -f lavfi -i testsrc=size=256x256:rate=1 -frames:v 1 -c:v h264_nvenc -f null -
+docker exec renomi-backend nvidia-smi -L
+docker exec renomi-backend ffmpeg -hide_banner -f lavfi -i testsrc=size=256x256:rate=1 -frames:v 1 -c:v h264_nvenc -f null -
 ```
 The backend log on the first job reports the chosen encoder and transcription device. A CUDA error in whisper (e.g. VRAM exhausted) retries once on CPU automatically. 8 GB of VRAM is enough for `large-v3-turbo` fp16 plus the detection models.
 
@@ -333,30 +304,33 @@ You don't need the dashboard. The whole pipeline is callable by AI agents and sc
 
 ### MCP server (`/mcp`)
 
-OpenShorts ships a built-in [MCP](https://modelcontextprotocol.io) server, so Claude, ChatGPT, Cursor or any MCP client can clip and publish videos for you:
-
-**claude.ai and ChatGPT**: paste `https://mcp.openshorts.app/mcp` as a custom connector (Settings → Connectors) and approve the access on openshorts.app. The server does OAuth 2.1 with dynamic client registration, so there is no key to copy; the connection shows up under Account → API keys, where revoking it disconnects the app.
+Renomi ships a built-in [MCP](https://modelcontextprotocol.io) server, so Claude, ChatGPT, Cursor or any MCP client can clip and publish videos for you:
 
 ```bash
-# Claude Code / Cursor / n8n (hosted): create an API key in your account page
-claude mcp add --transport http openshorts https://mcp.openshorts.app/mcp \
-  --header "Authorization: Bearer osk_..."
-
-# Self-hosted (no key needed, BYOK rules apply):
-claude mcp add --transport http openshorts http://localhost:8000/mcp
+claude mcp add --transport http renomi http://localhost:8000/mcp
 ```
 
-Tools: `process_video` (URL or `upload_id`; `captions: false` when the source already has subtitles, `auto_hook: false` to skip the hook line, burned by default like the dashboard), `create_upload` (hand the agent a local file: PUT the bytes, then process), `get_job_status`, `list_clips`, `get_quota`, `add_subtitles`, `recut_clip`, `publish_clip`. A prompt like *"clip this podcast and schedule the best 3 to TikTok"* is now a one-liner in your agent of choice.
+The endpoint takes no credentials — there is no user model to authenticate
+against — so it is only as private as the network it sits on. A remote MCP
+client (claude.ai, ChatGPT) needs a public HTTPS URL, which means putting your
+own auth in front of it first.
 
-### REST API + API keys
+Tools: `process_video` (URL or `upload_id`; `captions: false` when the source
+already has subtitles, `auto_hook: false` to skip the hook line, burned by
+default like the dashboard), `create_upload` (hand the agent a local file: PUT
+the bytes, then process), `get_job_status`, `list_clips`, `add_subtitles`,
+`recut_clip`, `publish_clip`. A prompt like *"clip this podcast and schedule the
+best 3 to TikTok"* is a one-liner in your agent of choice.
 
-Hosted accounts can mint `osk_...` API keys (account page). A key authenticates as you everywhere — same plan, same minutes, same job ownership:
+### REST API
+
+Every dashboard action is a plain HTTP call, unauthenticated:
 
 ```bash
-curl -X POST https://api.openshorts.app/api/process \
-  -H "Authorization: Bearer osk_..." -H "Content-Type: application/json" \
+curl -X POST http://localhost:8000/api/process \
+  -H "Content-Type: application/json" \
   -d '{"url": "https://youtube.com/watch?v=...", "acknowledged": true,
-       "webhook_url": "https://your-server.com/hooks/openshorts"}'
+       "webhook_url": "https://your-server.com/hooks/renomi"}'
 ```
 
 Interactive docs at `/docs` (OpenAPI) on any instance.
@@ -370,38 +344,37 @@ Pass `webhook_url` (and optionally `webhook_secret`) to `POST /api/process` and 
  "clips": [{"index": 0, "title": "…", "video_url": "…", "download_url": "…"}]}
 ```
 
-With a secret, the body is signed: `X-OpenShorts-Signature: sha256=<hmac-sha256(body)>`.
+With a secret, the body is signed: `X-Renomi-Signature: sha256=<hmac-sha256(body)>`.
 
 ### CLI
 
 The same API from the terminal, zero dependencies (`cli/`):
 
 ```bash
-pip install openshorts   # or: uvx openshorts
+pip install ./cli    # not published to PyPI; install from this repo
 
-export OPENSHORTS_API_KEY=osk_...              # hosted
-# export OPENSHORTS_API_URL=http://localhost:8000   # self-hosted, no key
+export RENOMI_API_URL=http://localhost:8000   # defaults to localhost:8000
 
-openshorts process "https://youtube.com/watch?v=..." --wait
-openshorts clips <job_id>
-openshorts publish <job_id> 0 --platforms tiktok,youtube
+renomi process "https://youtube.com/watch?v=..." --wait
+renomi clips <job_id>
+renomi publish <job_id> 0 --platforms tiktok,youtube
 ```
 
 ### Agent skill
 
-`skills/openshorts/SKILL.md` follows the open
+`skills/renomi/SKILL.md` follows the open
 [Agent Skills](https://agentskills.io) standard, so it works in any
 skill-capable agent:
 
 ```bash
 # Claude Code (and most agents): copy the folder into the skills directory
-cp -r skills/openshorts ~/.claude/skills/
+cp -r skills/renomi ~/.claude/skills/
 
 # Hermes Agent: install straight from this repo
-hermes skills install mutonby/openshorts/skills/openshorts
+hermes skills install Kiduzz/makeshorts/skills/renomi
 
 # OpenClaw: from ClawHub
-openclaw skills install @mutonby/openshorts
+openclaw skills install @Kiduzz/makeshorts
 ```
 
 ### n8n
@@ -466,20 +439,26 @@ lives in [`examples/n8n/`](examples/n8n/).
 2. **Create Profile**: Go to [Manage Users](https://app.upload-post.com/manage-users)
 3. **Connect Accounts**: Link TikTok, Instagram, and/or YouTube
 4. **Get API Key**: Navigate to [API Keys](https://app.upload-post.com/api-keys)
-5. **Use in OpenShorts**: Paste the key in Settings
+5. **Use in Renomi**: Paste the key in Settings
 
 ---
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=mutonby/openshorts&type=Date)](https://star-history.com/#mutonby/openshorts&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=Kiduzz/makeshorts&type=Date)](https://star-history.com/#Kiduzz/makeshorts&Date)
 
 ## Contributions
 
 Contributions are welcome! Whether it's adding new AI models, improving the lip-sync pipeline, or building new features — feel free to open a PR.
 
-## License
+## License and attribution
 
-MIT License for the core application — OpenShorts is yours to use, modify, and scale.
+MIT — see [LICENSE](LICENSE). Yours to use, modify, host and sell.
 
-**Exception:** the [`cloud/`](cloud/LICENSE) directory (billing, managed keys, and the hosted-service infrastructure behind the optional `BILLING_ENABLED` flag) is source-available under the OpenShorts Commercial License. You can read it, modify it, and self-host it for personal or internal use, but you can't offer it to third parties as a paid/hosted service. Self-hosting the core app never requires this directory.
+Renomi is a fork of [OpenShorts](https://github.com/mutonby/openshorts) by
+mutonby, and the MIT copyright notice on that work is retained in the LICENSE
+file. Upstream additionally ships a `cloud/` directory under a separate
+commercial license that forbids offering it as a hosted or paid service; that
+directory and everything depending on it were removed here, so no part of this
+repository carries those terms. If you pull changes from upstream, do not
+reintroduce it without reading `cloud/LICENSE` there.
